@@ -4,7 +4,7 @@ export const environment = {
   apiBaseUrl: 'https://your-production-api.com/api', // <-- REPLACE WITH YOUR API URL
 
   // TODO: Replace with your deployed Render ML backend URL
-  mlApiBaseUrl: 'https://agri-iot-8mnu.onrender.com'
+  mlApiBaseUrl: 'https://agri-iot-8mnu.onrender.com' ,
     
   useMock: false
 };
