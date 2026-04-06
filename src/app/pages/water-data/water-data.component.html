@@ -1,0 +1,52 @@
+<div class="page-container">
+  <div class="page-header">
+    <h2>{{ lang.t('nav.waterData') }}</h2>
+    <button class="btn btn-primary" (click)="refresh()">{{ lang.t('common.refresh') }}</button>
+  </div>
+
+  <div class="loading-spinner" *ngIf="loading">
+    <div class="spinner"></div>
+    <p>{{ lang.t('common.loading') }}</p>
+  </div>
+
+  <div class="no-data" *ngIf="!loading && waterRecords.length === 0">
+    <p>{{ lang.t('common.noData') }}</p>
+  </div>
+
+  <div class="card-grid" *ngIf="!loading && waterRecords.length > 0">
+    <div class="card" *ngFor="let w of waterRecords">
+      <div class="card-header">
+        <h3>{{ w.location }}</h3>
+        <span class="pump-status" [class.on]="w.pumpStatus === 'ON'" [class.off]="w.pumpStatus === 'OFF'">
+          {{ w.pumpStatus }}
+        </span>
+      </div>
+      <div class="card-body">
+        <div class="water-metrics">
+          <div class="metric">
+            <span class="metric-label">{{ lang.t('water.soilMoisture') }}</span>
+            <span class="metric-value">{{ w.soilMoisture }}%</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">{{ lang.t('water.irrigationStatus') }}</span>
+            <span class="metric-value">{{ w.irrigationStatus }}</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">{{ lang.t('water.waterLevel') }}</span>
+            <span class="metric-value">{{ w.waterLevel }}%</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">{{ lang.t('water.waterQuality') }}</span>
+            <span class="metric-value">{{ w.waterQuality }}</span>
+          </div>
+          <div class="metric">
+            <span class="metric-label">{{ lang.t('water.pumpStatus') }}</span>
+            <span class="metric-value pump-status" [class.on]="w.pumpStatus === 'ON'" [class.off]="w.pumpStatus === 'OFF'">{{ w.pumpStatus }}</span>
+          </div>
+        </div>
+        <p><strong>Last Irrigated:</strong> {{ w.lastIrrigated | date:'medium' }}</p>
+        <p class="card-date">{{ w.timestamp | date:'medium' }}</p>
+      </div>
+    </div>
+  </div>
+</div>

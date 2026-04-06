@@ -1,0 +1,14 @@
+<nav class="sidebar" [class.collapsed]="collapsed">
+  <div class="sidebar-brand">
+    <span class="brand-icon">🌱</span>
+    <span class="brand-text" *ngIf="!collapsed">Agri-IoT</span>
+  </div>
+  <ul class="nav-list">
+    <li *ngFor="let item of navItems" class="nav-item">
+      <a [routerLink]="item.route" routerLinkActive="active" class="nav-link">
+        <span class="nav-icon">{{ item.icon }}</span>
+        <span class="nav-text" *ngIf="!collapsed">{{ lang.t(item.labelKey) }}</span>
+      </a>
+    </li>
+  </ul>
+</nav>

@@ -1,0 +1,13 @@
+<header class="app-header">
+  <div class="header-left">
+    <button class="menu-toggle" (click)="onToggle()">☰</button>
+    <h1 class="header-title">{{ lang.t('dashboard.title') }}</h1>
+  </div>
+  <div class="header-right">
+    <select class="language-select" [value]="lang.currentLang" (change)="onLanguageChange($event)">
+      <option *ngFor="let l of languages" [value]="l.code">
+        {{ l.nativeName }}
+      </option>
+    </select>
+  </div>
+</header>

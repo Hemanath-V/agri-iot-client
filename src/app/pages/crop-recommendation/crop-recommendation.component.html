@@ -1,0 +1,139 @@
+<div class="page-container">
+  <div class="page-header">
+    <h2>{{ lang.t('nav.cropRecommendation') }}</h2>
+    <button class="btn btn-primary" (click)="refresh()">{{ lang.t('common.refresh') }}</button>
+  </div>
+
+  <!-- ── ML Crop Prediction Section ─────────────────────────── -->
+  <div class="prediction-section card">
+    <h3>🌾 Predict Best Crop from Sensor Data</h3>
+    <p class="section-hint">Enter your current sensor readings to get an ML-based crop recommendation.</p>
+
+    <!-- Sensor data source indicator -->
+    <div class="sensor-source" *ngIf="!fetchingSensor">
+      <span class="source-badge live" *ngIf="sensorDataSource === 'live'">
+        📡 Live data ({{ availableSensors.length }}/7 sensors)
+      </span>
+      <span class="source-badge fallback" *ngIf="sensorDataSource === 'fallback'">
+        ⚠ No live data — using last stored values
+      </span>
+      <span class="source-badge manual" *ngIf="sensorDataSource === 'manual'">
+        ✏️ Manual input
+      </span>
+      <button class="btn-link" (click)="fetchLiveSensorData()">↻ Refresh sensor data</button>
+    </div>
+    <div class="sensor-source" *ngIf="fetchingSensor">
+      <span class="source-badge loading">⏳ Fetching live sensor data…</span>
+    </div>
+
+    <div class="sensor-form">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Nitrogen (N)</label>
+          <input type="number" [(ngModel)]="sensorInput.N" step="1" />
+        </div>
+        <div class="form-group">
+          <label>Phosphorus (P)</label>
+          <input type="number" [(ngModel)]="sensorInput.P" step="1" />
+        </div>
+        <div class="form-group">
+          <label>Potassium (K)</label>
+          <input type="number" [(ngModel)]="sensorInput.K" step="1" />
+        </div>
+        <div class="form-group">
+          <label>pH Level</label>
+          <input type="number" [(ngModel)]="sensorInput.pH" step="0.01" />
+        </div>
+        <div class="form-group">
+          <label>Temperature (°C)</label>
+          <input type="number" [(ngModel)]="sensorInput.temp" step="0.1" />
+        </div>
+        <div class="form-group">
+          <label>Humidity (%)</label>
+          <input type="number" [(ngModel)]="sensorInput.hum" step="0.1" />
+        </div>
+        <div class="form-group">
+          <label>Soil Moisture (%)</label>
+          <input type="number" [(ngModel)]="sensorInput.moist" step="0.1" />
+        </div>
+      </div>
+
+      <button class="btn btn-accent predict-btn" [disabled]="predicting" (click)="predictCrop()">
+        <span *ngIf="!predicting">🔍 Get Crop Recommendation</span>
+        <span *ngIf="predicting">⏳ Predicting…</span>
+      </button>
+    </div>
+
+    <!-- Prediction loading -->
+    <div class="prediction-loading" *ngIf="predicting">
+      <div class="spinner"></div>
+      <p>Contacting ML server… This may take up to 60 seconds on first request (cold start).</p>
+    </div>
+
+    <!-- Prediction result -->
+    <div class="prediction-result" *ngIf="predictionResult && !predicting">
+      <div class="result-icon">🌱</div>
+      <div class="result-body">
+        <h4>Recommended Crop: <strong>{{ predictionResult.recommended_crop }}</strong></h4>
+        <p *ngIf="predictionResult.confidence">Confidence: {{ predictionResult.confidence }}%</p>
+        <p *ngIf="predictionResult.warning" class="result-warning">⚠ {{ predictionResult.warning }}</p>
+        <p *ngIf="predictionResult.sensors_used" class="result-note">📡 Real sensors: {{ predictionResult.sensors_used.join(', ') }}</p>
+        <p *ngIf="predictionResult.imputed" class="result-note imputed-note">
+          📊 Imputed (training avg): <span *ngFor="let key of objectKeys(predictionResult.imputed)">{{ key }}={{ predictionResult.imputed[key] | number:'1.1-1' }}  </span>
+        </p>
+        <p *ngIf="predictionResult.message" class="result-note">{{ predictionResult.message }}</p>
+      </div>
+    </div>
+
+    <!-- Prediction error -->
+    <div class="prediction-error" *ngIf="predictionError && !predicting">
+      <strong>⚠ Prediction failed:</strong> {{ predictionError }}
+    </div>
+  </div>
+
+  <!-- ── Existing Recommendations Table ─────────────────────── -->
+  <div class="loading-spinner" *ngIf="loading">
+    <div class="spinner"></div>
+    <p>{{ lang.t('common.loading') }}</p>
+  </div>
+
+  <div class="no-data" *ngIf="!loading && recommendations.length === 0">
+    <p>{{ lang.t('common.noData') }}</p>
+  </div>
+
+  <div class="table-responsive" *ngIf="!loading && recommendations.length > 0">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>{{ lang.t('crop.name') }}</th>
+          <th>{{ lang.t('crop.confidence') }}</th>
+          <th>{{ lang.t('crop.season') }}</th>
+          <th>{{ lang.t('crop.waterReq') }}</th>
+          <th>{{ lang.t('crop.expectedYield') }}</th>
+          <th>{{ lang.t('crop.soilType') }}</th>
+          <th>Remarks</th>
+          <th>{{ lang.t('common.date') }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let rec of recommendations">
+          <td>{{ rec.cropName }}</td>
+          <td>
+            <span class="confidence-badge"
+              [class.high]="rec.confidence >= 80"
+              [class.medium]="rec.confidence >= 50 && rec.confidence < 80"
+              [class.low]="rec.confidence < 50">
+              {{ rec.confidence }}%
+            </span>
+          </td>
+          <td>{{ rec.season }}</td>
+          <td>{{ rec.waterRequirement }}</td>
+          <td>{{ rec.expectedYield }}</td>
+          <td>{{ rec.soilType }}</td>
+          <td>{{ rec.remarks }}</td>
+          <td>{{ rec.recommendedDate | date:'medium' }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>

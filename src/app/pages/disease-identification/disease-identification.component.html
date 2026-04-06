@@ -1,0 +1,126 @@
+<div class="page-container">
+  <div class="page-header">
+    <h2>{{ lang.t('nav.diseaseIdentification') }}</h2>
+    <button class="btn btn-primary" (click)="refresh()">{{ lang.t('common.refresh') }}</button>
+  </div>
+
+  <!-- ── ML Disease Prediction Section ──────────────────────── -->
+  <div class="prediction-section card">
+    <h3>🔬 AI Disease Detection</h3>
+    <p class="section-hint">Upload a photo of your plant leaf and the ML model will identify the disease.</p>
+
+    <div class="upload-controls">
+      <label class="file-label">
+        <input type="file" accept="image/*" (change)="onMlFileSelected($event)" />
+        <span class="btn btn-primary">📷 Choose Image</span>
+      </label>
+      <span class="file-name" *ngIf="mlFile">{{ mlFile.name }}</span>
+      <button class="btn btn-accent predict-btn"
+              [disabled]="!mlFile || predicting"
+              (click)="predictDisease()">
+        <span *ngIf="!predicting">🔍 Detect Disease</span>
+        <span *ngIf="predicting">⏳ Analyzing…</span>
+      </button>
+    </div>
+
+    <!-- Image preview -->
+    <div class="image-preview" *ngIf="mlImagePreview">
+      <img [src]="mlImagePreview" alt="Selected plant image" />
+    </div>
+
+    <!-- Prediction loading -->
+    <div class="prediction-loading" *ngIf="predicting">
+      <div class="spinner"></div>
+      <p>Analyzing image… This may take up to 60 seconds on first request (cold start).</p>
+    </div>
+
+    <!-- Prediction result -->
+    <div class="prediction-result" *ngIf="mlResult && !predicting">
+      <div class="result-icon">🦠</div>
+      <div class="result-body">
+        <h4>Predicted Disease: <strong>{{ mlResult.predicted_disease }}</strong></h4>
+        <p *ngIf="mlResult.confidence">Confidence: {{ mlResult.confidence }}%</p>
+        <p *ngIf="mlResult.message" class="result-note">{{ mlResult.message }}</p>
+      </div>
+    </div>
+
+    <!-- Prediction error -->
+    <div class="prediction-error" *ngIf="mlError && !predicting">
+      <strong>⚠ Detection failed:</strong> {{ mlError }}
+    </div>
+
+    <!-- Auto-detection polling controls -->
+    <div class="auto-detect-section">
+      <div class="auto-detect-header">
+        <h4>🔄 Automated Monitoring</h4>
+        <button class="btn"
+                [class.btn-success]="!autoDetectEnabled"
+                [class.btn-danger]="autoDetectEnabled"
+                [disabled]="!mlFile && !autoDetectEnabled"
+                (click)="toggleAutoDetect()">
+          {{ autoDetectEnabled ? '⏹ Stop Monitoring' : '▶ Start Auto-Detection (every 10 min)' }}
+        </button>
+      </div>
+      <div class="auto-detect-status" *ngIf="autoDetectEnabled">
+        <p>🟢 Monitoring active — next scan in <strong>{{ formatCountdown(autoDetectCountdown) }}</strong></p>
+        <p *ngIf="lastAutoDetectTime" class="last-scan">Last scan: {{ lastAutoDetectTime }}</p>
+      </div>
+      <p class="auto-detect-hint" *ngIf="!autoDetectEnabled">
+        Upload an image, then enable auto-detection to re-analyze it every 10 minutes.
+      </p>
+    </div>
+  </div>
+
+  <!-- ── Legacy Image Upload Section (existing DB endpoint) ── -->
+  <div class="upload-section card">
+    <h3>{{ lang.t('disease.upload') }}</h3>
+    <div class="upload-controls">
+      <input type="file" accept="image/*" (change)="onFileSelected($event)" />
+      <button class="btn btn-success" [disabled]="!selectedFile || loading" (click)="uploadImage()">
+        Upload &amp; Detect
+      </button>
+    </div>
+    <div class="upload-result card" *ngIf="uploadResult">
+      <h4>{{ uploadResult.diseaseName }}</h4>
+      <p><strong>{{ lang.t('disease.crop') }}:</strong> {{ uploadResult.cropAffected }}</p>
+      <p><strong>{{ lang.t('crop.confidence') }}:</strong> {{ uploadResult.confidence }}%</p>
+      <p><strong>{{ lang.t('common.severity') }}:</strong>
+        <span class="severity-badge" [ngClass]="uploadResult.severity.toLowerCase()">{{ uploadResult.severity }}</span>
+      </p>
+      <p><strong>{{ lang.t('disease.remedy') }}:</strong> {{ uploadResult.remedy }}</p>
+    </div>
+  </div>
+
+  <!-- Loading Spinner -->
+  <div class="loading-spinner" *ngIf="loading">
+    <div class="spinner"></div>
+    <p>{{ lang.t('common.loading') }}</p>
+  </div>
+
+  <!-- No Data -->
+  <div class="no-data" *ngIf="!loading && diseases.length === 0">
+    <p>{{ lang.t('common.noData') }}</p>
+  </div>
+
+  <!-- Disease Cards -->
+  <div class="card-grid" *ngIf="!loading && diseases.length > 0">
+    <div class="card" *ngFor="let d of diseases">
+      <div class="card-header">
+        <h3>{{ d.diseaseName }}</h3>
+        <span class="severity-badge" [ngClass]="d.severity.toLowerCase()">{{ d.severity }}</span>
+      </div>
+      <div class="card-body">
+        <p><strong>{{ lang.t('disease.crop') }}:</strong> {{ d.cropAffected }}</p>
+        <p><strong>{{ lang.t('crop.confidence') }}:</strong> {{ d.confidence }}%</p>
+        <div class="symptoms-list">
+          <strong>{{ lang.t('disease.symptoms') }}:</strong>
+          <ul>
+            <li *ngFor="let symptom of d.symptoms">{{ symptom }}</li>
+          </ul>
+        </div>
+        <p><strong>{{ lang.t('disease.remedy') }}:</strong> {{ d.remedy }}</p>
+        <p class="card-date">{{ d.detectedDate | date:'medium' }}</p>
+      </div>
+    </div>
+  </div>
+</div>

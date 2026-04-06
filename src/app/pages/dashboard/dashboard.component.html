@@ -1,0 +1,194 @@
+<!-- Dashboard View -->
+<div class="dashboard">
+
+  <!-- Loading Spinner -->
+  <div class="dashboard__loading" *ngIf="loading">
+    <div class="dashboard__spinner"></div>
+    <p>{{ lang.t('common.loading') }}</p>
+  </div>
+
+  <!-- No Data Fallback -->
+  <div class="dashboard__no-data" *ngIf="!loading && !summary">
+    <p>{{ lang.t('common.noData') }}</p>
+    <button class="dashboard__refresh-btn" (click)="refresh()">
+      {{ lang.t('common.refresh') }}
+    </button>
+  </div>
+
+  <!-- Dashboard Content -->
+  <div class="dashboard__content" *ngIf="!loading && summary">
+
+    <!-- Title and Refresh -->
+    <div class="dashboard__header">
+      <h1 class="dashboard__title">{{ lang.t('dashboard.title') }}</h1>
+      <button class="dashboard__refresh-btn" (click)="refresh()">
+        {{ lang.t('common.refresh') }}
+      </button>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="dashboard__summary-cards">
+
+      <div class="dashboard__card dashboard__card--primary">
+        <div class="card__icon">📡</div>
+        <div class="card__body">
+          <span class="card__title">{{ lang.t('dashboard.totalSensors') }}</span>
+          <span class="card__value">{{ summary.totalSensors }}</span>
+        </div>
+      </div>
+
+      <div class="dashboard__card dashboard__card--success">
+        <div class="card__icon">✅</div>
+        <div class="card__body">
+          <span class="card__title">{{ lang.t('dashboard.activeSensors') }}</span>
+          <span class="card__value">{{ summary.activeSensors }}</span>
+        </div>
+      </div>
+
+      <div class="dashboard__card dashboard__card--info">
+        <div class="card__icon">🌾</div>
+        <div class="card__body">
+          <span class="card__title">{{ lang.t('dashboard.latestCrop') }}</span>
+          <span class="card__value" *ngIf="summary.lastCropRecommendation">
+            {{ summary.lastCropRecommendation.cropName }}
+            ({{ summary.lastCropRecommendation.confidence }}%)
+          </span>
+          <span class="card__value card__value--empty" *ngIf="!summary.lastCropRecommendation">&mdash;</span>
+        </div>
+      </div>
+
+      <div class="dashboard__card dashboard__card--danger">
+        <div class="card__icon">🦠</div>
+        <div class="card__body">
+          <span class="card__title">{{ lang.t('dashboard.latestDisease') }}</span>
+          <span class="card__value" *ngIf="summary.lastDiseaseAlert">
+            {{ summary.lastDiseaseAlert.diseaseName }}
+            <span class="card__severity"
+              [class.card__severity--low]="summary.lastDiseaseAlert.severity === 'Low'"
+              [class.card__severity--medium]="summary.lastDiseaseAlert.severity === 'Medium'"
+              [class.card__severity--high]="summary.lastDiseaseAlert.severity === 'High'"
+              [class.card__severity--critical]="summary.lastDiseaseAlert.severity === 'Critical'">
+              {{ summary.lastDiseaseAlert.severity }}
+            </span>
+          </span>
+          <span class="card__value card__value--empty" *ngIf="!summary.lastDiseaseAlert">&mdash;</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Sensor Overview Cards -->
+    <div class="dashboard__sensor-overview">
+
+      <!-- Soil Overview -->
+      <div class="dashboard__card dashboard__card--sensor" *ngIf="summary.currentSoil">
+        <h3 class="card__title">{{ lang.t('dashboard.soilOverview') }}</h3>
+        <div class="card__metrics">
+          <div class="card__metric">
+            <span class="card__metric-label">{{ lang.t('soil.moisture') }}</span>
+            <span class="card__metric-value">{{ summary.currentSoil.moisture }}%</span>
+          </div>
+          <div class="card__metric">
+            <span class="card__metric-label">{{ lang.t('soil.ph') }}</span>
+            <span class="card__metric-value">{{ summary.currentSoil.ph }}</span>
+          </div>
+          <div class="card__metric">
+            <span class="card__metric-label">{{ lang.t('soil.nitrogen') }}</span>
+            <span class="card__metric-value">{{ summary.currentSoil.nitrogen }}</span>
+          </div>
+          <div class="card__metric">
+            <span class="card__metric-label">{{ lang.t('soil.phosphorus') }}</span>
+            <span class="card__metric-value">{{ summary.currentSoil.phosphorus }}</span>
+          </div>
+          <div class="card__metric">
+            <span class="card__metric-label">{{ lang.t('soil.potassium') }}</span>
+            <span class="card__metric-value">{{ summary.currentSoil.potassium }}</span>
+          </div>
+        </div>
+        <div class="card__footer">
+          <span class="card__location">{{ summary.currentSoil.location }}</span>
+          <span class="card__timestamp">{{ summary.currentSoil.timestamp }}</span>
+        </div>
+      </div>
+
+      <!-- Weather Overview -->
+      <div class="dashboard__card dashboard__card--sensor" *ngIf="summary.currentWeather">
+        <h3 class="card__title">{{ lang.t('dashboard.weatherOverview') }}</h3>
+        <div class="card__metrics">
+          <div class="card__metric">
+            <span class="card__metric-label">{{ lang.t('weather.temperature') }}</span>
+            <span class="card__metric-value">{{ summary.currentWeather.temperature }}&deg;C</span>
+          </div>
+          <div class="card__metric">
+            <span class="card__metric-label">{{ lang.t('weather.humidity') }}</span>
+            <span class="card__metric-value">{{ summary.currentWeather.humidity }}%</span>
+          </div>
+          <div class="card__metric">
+            <span class="card__metric-label">{{ lang.t('weather.rainfall') }}</span>
+            <span class="card__metric-value">{{ summary.currentWeather.rainfall }} mm</span>
+          </div>
+        </div>
+        <div class="card__footer">
+          <span class="card__location">{{ summary.currentWeather.location }}</span>
+          <span class="card__timestamp">{{ summary.currentWeather.timestamp }}</span>
+        </div>
+      </div>
+
+      <!-- Water Overview -->
+      <div class="dashboard__card dashboard__card--sensor" *ngIf="summary.currentWater">
+        <h3 class="card__title">{{ lang.t('dashboard.waterOverview') }}</h3>
+        <div class="card__metrics">
+          <div class="card__metric">
+            <span class="card__metric-label">{{ lang.t('water.soilMoisture') }}</span>
+            <span class="card__metric-value">{{ summary.currentWater.soilMoisture }}%</span>
+          </div>
+          <div class="card__metric">
+            <span class="card__metric-label">{{ lang.t('water.level') }}</span>
+            <span class="card__metric-value">{{ summary.currentWater.waterLevel }}</span>
+          </div>
+          <div class="card__metric">
+            <span class="card__metric-label">{{ lang.t('water.pumpStatus') }}</span>
+            <span class="card__metric-value"
+              [class.card__metric-value--on]="summary.currentWater.pumpStatus === 'ON'"
+              [class.card__metric-value--off]="summary.currentWater.pumpStatus === 'OFF'">
+              {{ summary.currentWater.pumpStatus }}
+            </span>
+          </div>
+        </div>
+        <div class="card__footer">
+          <span class="card__location">{{ summary.currentWater.location }}</span>
+          <span class="card__timestamp">{{ summary.currentWater.timestamp }}</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Recent Alerts -->
+    <div class="dashboard__alerts">
+      <h2 class="dashboard__section-title">{{ lang.t('dashboard.recentAlerts') }}</h2>
+
+      <div class="dashboard__no-data" *ngIf="summary.recentAlerts.length === 0">
+        <p>{{ lang.t('common.noData') }}</p>
+      </div>
+
+      <div class="dashboard__alert-list" *ngIf="summary.recentAlerts.length > 0">
+        <div
+          class="dashboard__alert"
+          *ngFor="let alert of summary.recentAlerts"
+          [class.dashboard__alert--info]="alert.type === 'info'"
+          [class.dashboard__alert--warning]="alert.type === 'warning'"
+          [class.dashboard__alert--danger]="alert.type === 'danger'"
+          [class.dashboard__alert--success]="alert.type === 'success'"
+          [class.dashboard__alert--unread]="!alert.isRead">
+          <span class="alert__badge">{{ alert.type }}</span>
+          <div class="alert__body">
+            <strong class="alert__title">{{ alert.title }}</strong>
+            <p class="alert__message">{{ alert.message }}</p>
+          </div>
+          <span class="alert__timestamp">{{ alert.timestamp }}</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>

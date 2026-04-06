@@ -1,0 +1,51 @@
+<div class="page-container">
+  <div class="page-header">
+    <h2>{{ lang.t('history.title') }}</h2>
+    <div class="header-actions">
+      <select class="filter-select" [(ngModel)]="filterType" (ngModelChange)="onFilterChange()">
+        <option value="">{{ lang.t('common.filter') }}: All</option>
+        <option value="crop">Crop</option>
+        <option value="disease">Disease</option>
+        <option value="soil">Soil</option>
+        <option value="weather">Weather</option>
+        <option value="water">Water</option>
+        <option value="fertilizer">Fertilizer</option>
+        <option value="pest">Pest</option>
+        <option value="yield">Yield</option>
+      </select>
+      <button class="btn btn-primary" (click)="refresh()">{{ lang.t('common.refresh') }}</button>
+    </div>
+  </div>
+
+  <div class="loading-spinner" *ngIf="loading">
+    <div class="spinner"></div>
+    <p>{{ lang.t('common.loading') }}</p>
+  </div>
+
+  <div class="no-data" *ngIf="!loading && records.length === 0">
+    <p>{{ lang.t('common.noData') }}</p>
+  </div>
+
+  <div class="table-responsive" *ngIf="!loading && records.length > 0">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>{{ lang.t('history.type') }}</th>
+          <th>Title</th>
+          <th>Description</th>
+          <th>{{ lang.t('common.date') }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let r of records">
+          <td>
+            <span class="type-badge" [ngClass]="r.type">{{ r.type }}</span>
+          </td>
+          <td>{{ r.title }}</td>
+          <td>{{ r.description }}</td>
+          <td>{{ r.timestamp | date:'medium' }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>

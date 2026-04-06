@@ -1,0 +1,40 @@
+<div class="page-container">
+  <div class="page-header">
+    <h2>{{ lang.t('nav.fertilizerData') }}</h2>
+    <button class="btn btn-primary" (click)="refresh()">{{ lang.t('common.refresh') }}</button>
+  </div>
+
+  <div class="loading-spinner" *ngIf="loading">
+    <div class="spinner"></div>
+    <p>{{ lang.t('common.loading') }}</p>
+  </div>
+
+  <div class="no-data" *ngIf="!loading && fertilizerRecords.length === 0">
+    <p>{{ lang.t('common.noData') }}</p>
+  </div>
+
+  <div class="table-responsive" *ngIf="!loading && fertilizerRecords.length > 0">
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>{{ lang.t('fertilizer.name') }}</th>
+          <th>{{ lang.t('fertilizer.quantity') }}</th>
+          <th>{{ lang.t('fertilizer.method') }}</th>
+          <th>{{ lang.t('fertilizer.frequency') }}</th>
+          <th>{{ lang.t('crop.name') }}</th>
+          <th>{{ lang.t('common.date') }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let f of fertilizerRecords">
+          <td>{{ f.fertilizerName }}</td>
+          <td>{{ f.recommendedQuantity }} {{ f.unit }}</td>
+          <td>{{ f.applicationMethod }}</td>
+          <td>{{ f.frequency }}</td>
+          <td>{{ f.cropName }}</td>
+          <td>{{ f.timestamp | date:'medium' }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>

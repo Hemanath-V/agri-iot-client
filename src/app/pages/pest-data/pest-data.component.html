@@ -1,0 +1,31 @@
+<div class="page-container">
+  <div class="page-header">
+    <h2>{{ lang.t('nav.pestData') }}</h2>
+    <button class="btn btn-primary" (click)="refresh()">{{ lang.t('common.refresh') }}</button>
+  </div>
+
+  <div class="loading-spinner" *ngIf="loading">
+    <div class="spinner"></div>
+    <p>{{ lang.t('common.loading') }}</p>
+  </div>
+
+  <div class="no-data" *ngIf="!loading && pestRecords.length === 0">
+    <p>{{ lang.t('common.noData') }}</p>
+  </div>
+
+  <div class="card-grid" *ngIf="!loading && pestRecords.length > 0">
+    <div class="card" *ngFor="let p of pestRecords">
+      <div class="card-header">
+        <h3>{{ p.pestName }}</h3>
+        <span class="severity-badge" [ngClass]="p.severity.toLowerCase()">{{ p.severity }}</span>
+      </div>
+      <div class="card-body">
+        <p><strong>{{ lang.t('disease.crop') }}:</strong> {{ p.cropAffected }}</p>
+        <p><strong>{{ lang.t('pest.detection') }}:</strong> {{ p.detectionMethod }}</p>
+        <p><strong>{{ lang.t('disease.remedy') }}:</strong> {{ p.remedy }}</p>
+        <p><strong>{{ lang.t('pest.pesticide') }}:</strong> {{ p.pesticideRecommended }}</p>
+        <p class="card-date">{{ p.detectedDate | date:'medium' }}</p>
+      </div>
+    </div>
+  </div>
+</div>
