@@ -64,10 +64,22 @@
       </button>
     </div>
 
-    <!-- Prediction loading -->
+    <!-- Prediction loading with elapsed timer -->
     <div class="prediction-loading" *ngIf="predicting">
       <div class="spinner"></div>
-      <p>Contacting ML server… This may take up to 60 seconds on first request (cold start).</p>
+      <div class="loading-detail">
+        <p class="loading-msg">{{ loadingMessage }}</p>
+        <p class="elapsed-time">⏱ {{ elapsedSeconds }}s elapsed</p>
+        <div class="loading-steps">
+          <span class="step" [class.active]="warmingUp" [class.done]="!warmingUp && predicting">
+            {{ warmingUp ? '⏳' : '✅' }} Wake up server
+          </span>
+          <span class="step" [class.active]="!warmingUp && predicting">
+            {{ !warmingUp && predicting ? '⏳' : '⬜' }} Run ML prediction
+          </span>
+        </div>
+        <p class="loading-hint" *ngIf="elapsedSeconds > 15">💡 Render free tier takes 30-60s on cold start. This is normal.</p>
+      </div>
     </div>
 
     <!-- Prediction result -->

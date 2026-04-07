@@ -174,6 +174,23 @@ export class ApiService {
     );
   }
 
+  /**
+   * Warmup the ML backend — calls /warmup to load the model.
+   * Handles Render cold start (can take 30-60s on free tier).
+   */
+  warmupMlBackend(): Observable<any> {
+    if (this.useMock) {
+      return of({ status: 'ready', crop_model_loaded: true }).pipe(delay(1000));
+    }
+    return this.http.get<any>(`${this.mlBaseUrl}/warmup`).pipe(
+      retry({
+        count: 2,
+        delay: (error, retryCount) => timer(retryCount * 5000) // 5s, 10s backoff
+      }),
+      catchError(() => of({ status: 'warmup_failed' }))
+    );
+  }
+
   /** Fetch the latest sensor reading stored on the ML backend (from ESP32) */
   getLatestSensorDataFromML(): Observable<CropPredictionRequest | null> {
     if (this.useMock) {

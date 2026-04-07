@@ -36,13 +36,13 @@ import logging
 import numpy as np
 from datetime import datetime
 
-import torch
-import torch.nn as nn
+# import torch
+# import torch.nn as nn
 import joblib
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from PIL import Image
-from torchvision import transforms, models
+# from torchvision import transforms, models
 
 # ── Logging ───────────────────────────────────────────────────
 logging.basicConfig(level=logging.INFO)
@@ -58,23 +58,6 @@ CORS(app, resources={r"/*": {"origins": [
     "https://your-frontend.vercel.app",         # ← REPLACE with your Vercel URL
     "https://*.vercel.app",                     # Wildcard for Vercel preview deploys
 ]}})
-
-# ══════════════════════════════════════════════════════════════
-# TRAINING-DATA MEANS (for imputing missing sensor values)
-# These should match the mean of your training dataset.
-# Using reasonable agricultural defaults – UPDATE these with
-# your actual training data means for best accuracy:
-#   df[['N','P','K','pH','temp','hum','moist']].mean()
-# ══════════════════════════════════════════════════════════════
-TRAINING_MEANS = {
-    "N":     50.55,   # Nitrogen (kg/ha)
-    "P":     53.36,   # Phosphorus (kg/ha)
-    "K":     48.15,   # Potassium (kg/ha)
-    "pH":    6.47,    # Soil pH
-    "temp":  25.62,   # Temperature (°C)
-    "hum":   71.48,   # Humidity (%)
-    "moist": 64.00,   # Soil Moisture (%)
-}
 
 # ══════════════════════════════════════════════════════════════
 # IN-MEMORY SENSOR STORE (for ESP32 data)
@@ -94,13 +77,37 @@ MAX_HISTORY = 100
 # --- Crop model (Random Forest via joblib) --------------------
 # ⚠ BUG FIX: Your friend's code called crop_model.predict() but
 #   never loaded the model! This line was missing.
+  
 crop_model = None
 CROP_MODEL_PATH = os.environ.get("CROP_MODEL_PATH", "crop_random_forest_model.pkl")
-try:
-    crop_model = joblib.load(CROP_MODEL_PATH)
-    logger.info("✅ Crop model loaded from %s", CROP_MODEL_PATH)
-except Exception as e:
-    logger.warning("⚠ Could not load crop model: %s", e)
+
+def load_crop_model():
+    global crop_model
+    if crop_model is None:
+        import joblib
+        crop_model = joblib.load(CROP_MODEL_PATH)
+        logger.info("✅ Crop model loaded lazily")
+    return crop_model
+
+@app.route("/warmup", methods=["GET"])
+def warmup():
+    try:
+        load_crop_model()
+        return jsonify({
+            "status": "ready",
+            "crop_model_loaded": crop_model is not None
+        })
+    except Exception as e:
+        return jsonify({
+            "status": "error",
+            "message": str(e)
+        }), 500
+  
+# try:
+    # crop_model = joblib.load(CROP_MODEL_PATH)
+    # logger.info("✅ Crop model loaded from %s", CROP_MODEL_PATH)
+# except Exception as e:
+    # logger.warning("⚠ Could not load crop model: %s", e)
 
 # --- Disease model (ResNet18 – 8 classes) ---------------------
 disease_model = None
@@ -108,14 +115,16 @@ DISEASE_MODEL_PATH = os.environ.get("DISEASE_MODEL_PATH", "resnet18_disease_mode
 NUM_DISEASE_CLASSES = int(os.environ.get("NUM_DISEASE_CLASSES", "8"))
 
 try:
-    disease_model = models.resnet18(weights=None)
-    num_ftrs = disease_model.fc.in_features
-    disease_model.fc = nn.Linear(num_ftrs, NUM_DISEASE_CLASSES)
+    # disease_model = models.resnet18(weights=None)
+    # num_ftrs = disease_model.fc.in_features
+    # disease_model.fc = nn.Linear(num_ftrs, NUM_DISEASE_CLASSES)
 
-    state_dict = torch.load(DISEASE_MODEL_PATH, map_location="cpu")
-    disease_model.load_state_dict(state_dict)
-    disease_model.eval()
-    logger.info("✅ Disease model loaded from %s (%d classes)", DISEASE_MODEL_PATH, NUM_DISEASE_CLASSES)
+    # state_dict = torch.load(DISEASE_MODEL_PATH, map_location="cpu")
+    # disease_model.load_state_dict(state_dict)
+    # disease_model.eval()
+    # logger.info("✅ Disease model loaded from %s (%d classes)", DISEASE_MODEL_PATH, NUM_DISEASE_CLASSES)
+    disease_model = None
+    logger.info("⚠ Disease model disabled for deployment (memory optimization)")
 except Exception as e:
     logger.warning("⚠ Could not load disease model: %s", e)
 
@@ -140,11 +149,11 @@ else:
     logger.info("ℹ Using default disease class names (create class_names.json for accuracy)")
 
 # Image preprocessing (matches your friend's original transform)
-disease_transform = transforms.Compose([
-    transforms.Resize((224, 224)),
-    transforms.ToTensor(),
-    transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
-])
+# disease_transform = transforms.Compose([
+#     transforms.Resize((224, 224)),
+#     transforms.ToTensor(),
+#     transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+# ])
 
 
 # ══════════════════════════════════════════════════════════════
@@ -211,39 +220,40 @@ def receive_sensor_data():
     """
     Receive sensor data from ESP32 via HTTP POST.
 
-    ALL fields are OPTIONAL. Send only what sensors you have.
-    Missing fields default to 0.
-
-    Example (partial – only temp and humidity available):
-    { "temp": 28.5, "hum": 78.0 }
-
-    Example (full):
-    { "N": 280, "P": 22, "K": 195, "pH": 6.5, "temp": 28.5, "hum": 78.0, "moist": 68.0 }
+    Expects JSON (field names match your friend's MQTT format):
+    {
+      "N": 280, "P": 22, "K": 195,
+      "pH": 6.5, "temp": 28.5, "hum": 78.0, "moist": 68.0
+    }
     """
     data = request.get_json(force=True)
 
-    if not data:
-        return jsonify({"error": "Empty request body"}), 400
+    required = ["N", "P", "K", "pH", "temp", "hum", "moist"]
+    missing = [f for f in required if f not in data]
+    if missing:
+        return jsonify({"error": f"Missing fields: {', '.join(missing)}"}), 400
 
-    # Store ONLY the sensor values that were actually sent.
-    # Do NOT fill in zeros or defaults — that's the predict endpoint's job.
-    all_keys = ["N", "P", "K", "pH", "temp", "hum", "moist"]
-    available_sensors = [k for k in all_keys if k in data and data[k] is not None]
-
-    reading = {"timestamp": datetime.utcnow().isoformat() + "Z"}
-    for k in available_sensors:
-        reading[k] = float(data[k])
-    reading["available_sensors"] = available_sensors
+    reading = {
+        "N": float(data["N"]),
+        "P": float(data["P"]),
+        "K": float(data["K"]),
+        "pH": float(data["pH"]),
+        "temp": float(data["temp"]),
+        "hum": float(data["hum"]),
+        "moist": float(data["moist"]),
+        "timestamp": datetime.utcnow().isoformat() + "Z",
+    }
 
     sensor_store["latest"] = reading
     sensor_store["history"].append(reading)
     if len(sensor_store["history"]) > MAX_HISTORY:
         sensor_store["history"] = sensor_store["history"][-MAX_HISTORY:]
 
-    logger.info("📡 Sensor data received (%d/%d sensors): %s",
-                len(available_sensors), 7, ", ".join(available_sensors))
+    logger.info("📡 Sensor: N=%s P=%s K=%s pH=%.1f temp=%.1f hum=%.1f moist=%.1f",
+                reading["N"], reading["P"], reading["K"],
+                reading["pH"], reading["temp"], reading["hum"], reading["moist"])
 
-    return jsonify({"status": "ok", "received": reading, "sensors_count": len(available_sensors)}), 201
+    return jsonify({"status": "ok", "received": reading}), 201
 
 
 @app.route("/api/sensor-data/latest", methods=["GET"])
@@ -269,116 +279,153 @@ def get_sensor_history():
 @app.route("/predict_crop", methods=["POST"])
 def predict_crop():
     """
-    Predict the best crop based on available sensor data.
+    Predict the best crop based on sensor data.
 
-    ALL fields are OPTIONAL. Send only what sensors you have.
-    Missing fields are imputed with training-data means (not 0),
-    so the prediction is based on the sensors you actually have.
+    Expects JSON:
+    { "N": 280, "P": 22, "K": 195, "pH": 6.5, "temp": 28, "hum": 78, "moist": 68 }
 
-    Examples:
-      Full:    { "N": 280, "P": 22, "K": 195, "pH": 6.5, "temp": 28, "hum": 78, "moist": 68 }
-      Partial: { "temp": 28, "hum": 78, "pH": 6.5 }
-      Empty:   {} → uses latest ESP32 sensor data automatically
+    OR send empty body {} → uses latest ESP32 sensor data automatically.
     """
-    if crop_model is None:
-        return jsonify({"error": "Crop model not loaded"}), 503
-
-    data = request.get_json(force=True) if request.is_json else {}
-
-    # Fallback to stored ESP32 data if no input provided
-    if not data:
-        if sensor_store["latest"]:
-            data = sensor_store["latest"]
-            logger.info("Using latest stored sensor data for crop prediction")
-        else:
-            return jsonify({"error": "No sensor data provided and no stored data available"}), 400
-
-    all_keys = ["N", "P", "K", "pH", "temp", "hum", "moist"]
-
-    # Determine which sensors were actually provided
-    provided = [k for k in all_keys if k in data and data[k] is not None]
-    missing  = [k for k in all_keys if k not in provided]
-
-    # Build feature vector: use real value if provided, training mean if missing
-    # Feature order MUST match training: [N, P, K, pH, temp, hum, moist]
     try:
-        features = []
-        imputed_values = {}
-        for k in all_keys:
-            if k in provided:
-                features.append(float(data[k]))
+        # Step 1: Load model
+        try:
+            model = load_crop_model()
+        except Exception as e:
+            logger.error("❌ Failed to load crop model: %s", str(e))
+            return jsonify({
+                "error": "Failed to load crop model",
+                "detail": str(e),
+                "step": "model_loading"
+            }), 503
+
+        if model is None:
+            return jsonify({"error": "Crop model is None after loading"}), 503
+
+        # Step 2: Parse input data
+        try:
+            data = request.get_json(force=True) if request.is_json else {}
+        except Exception as e:
+            logger.error("❌ Failed to parse JSON: %s", str(e))
+            return jsonify({
+                "error": "Failed to parse request JSON",
+                "detail": str(e),
+                "step": "json_parsing"
+            }), 400
+
+        # Fallback to stored ESP32 data if no input provided
+        if not data or "temp" not in data:
+            if sensor_store["latest"]:
+                data = sensor_store["latest"]
+                logger.info("Using latest stored sensor data for crop prediction")
             else:
-                mean_val = TRAINING_MEANS[k]
-                features.append(mean_val)
-                imputed_values[k] = mean_val
-        features = [features]
-    except (TypeError, ValueError) as e:
-        return jsonify({"error": f"Invalid input: {e}"}), 400
+                return jsonify({"error": "No sensor data provided and no stored data available"}), 400
 
-    logger.info("Crop prediction – provided: %s | imputed: %s",
-                provided, list(imputed_values.keys()))
+        # Step 3: Build features array
+        try:
+            features = [[
+                float(data["N"]),
+                float(data["P"]),
+                float(data["K"]),
+                float(data["pH"]),
+                float(data["temp"]),
+                float(data["hum"]),
+                float(data["moist"]),
+            ]]
+            logger.info("📊 Features built: %s", features)
+        except (KeyError, TypeError, ValueError) as e:
+            logger.error("❌ Failed to build features: %s", str(e))
+            return jsonify({
+                "error": "Invalid input data",
+                "detail": str(e),
+                "step": "feature_building",
+                "received_data": str(data)
+            }), 400
 
-    prediction = crop_model.predict(features)[0]
+        # Step 4: Predict
+        try:
+            prediction = model.predict(features)[0]
+            logger.info("✅ Prediction: %s", prediction)
+        except Exception as e:
+            logger.error("❌ Prediction failed: %s", str(e))
+            return jsonify({
+                "error": "Model prediction failed",
+                "detail": str(e),
+                "step": "prediction",
+                "model_type": str(type(model)),
+                "features_shape": str(np.array(features).shape),
+                "features": str(features)
+            }), 500
 
-    confidence = None
-    if hasattr(crop_model, "predict_proba"):
-        proba = crop_model.predict_proba(features)[0]
-        confidence = round(float(np.max(proba)) * 100, 2)
+        # Step 5: Confidence
+        confidence = None
+        try:
+            if hasattr(model, "predict_proba"):
+                proba = model.predict_proba(features)[0]
+                confidence = round(float(np.max(proba)) * 100, 2)
+                logger.info("📈 Confidence: %s%%", confidence)
+        except Exception as e:
+            logger.warning("⚠ Could not compute confidence: %s", str(e))
 
-    result = {
-        "recommended_crop": str(prediction),
-        "confidence": confidence,
-        "sensors_used": provided,
-    }
-    if missing:
-        result["warning"] = (
-            f"Missing sensors ({', '.join(missing)}) were filled with "
-            f"training-data averages. Prediction is based on {len(provided)}/7 real sensors."
-        )
-        result["imputed"] = imputed_values
+        return jsonify({
+            "recommended_crop": str(prediction),
+            "confidence": confidence,
+        })
 
-    return jsonify(result)
+    except Exception as e:
+        logger.error("❌ Unexpected error in predict_crop: %s", str(e))
+        return jsonify({
+            "error": "Unexpected server error",
+            "detail": str(e),
+            "step": "unknown"
+        }), 500
 
 
 # ──────────────────────────────────────────────────────────────
 # DISEASE PREDICTION (ResNet18 – 8 classes)
 # ──────────────────────────────────────────────────────────────
 
+
 @app.route("/predict_disease", methods=["POST"])
 def predict_disease():
-    """
-    Predict plant disease from an uploaded image.
-    Expects multipart/form-data with field "file" containing the image.
-    """
-    if disease_model is None:
-        return jsonify({"error": "Disease model not loaded"}), 503
-
-    if "file" not in request.files:
-        return jsonify({"error": "No file uploaded. Send image as 'file' field."}), 400
-
-    file = request.files["file"]
-    if file.filename == "":
-        return jsonify({"error": "Empty filename"}), 400
-
-    try:
-        image = Image.open(io.BytesIO(file.read())).convert("RGB")
-    except Exception:
-        return jsonify({"error": "Invalid image file"}), 400
-
-    input_tensor = disease_transform(image).unsqueeze(0)
-
-    with torch.no_grad():
-        output = disease_model(input_tensor)
-        probabilities = torch.nn.functional.softmax(output, dim=1)[0]
-        confidence, disease_idx = torch.max(probabilities, 0)
-
-    idx = disease_idx.item()
-    disease_name = DISEASE_CLASSES[idx] if idx < len(DISEASE_CLASSES) else f"Class {idx}"
-
     return jsonify({
-        "predicted_disease": disease_name,
-        "confidence": round(confidence.item() * 100, 2),
-    })
+        "error": "Disease model temporarily disabled for cloud deployment"
+    }), 503
+
+# @app.route("/predict_disease", methods=["POST"])
+# def predict_disease():
+#     """
+#     Predict plant disease from an uploaded image.
+#     Expects multipart/form-data with field "file" containing the image.
+#     """
+#     if disease_model is None:
+#         return jsonify({"error": "Disease model not loaded"}), 503
+
+#     if "file" not in request.files:
+#         return jsonify({"error": "No file uploaded. Send image as 'file' field."}), 400
+
+#     file = request.files["file"]
+#     if file.filename == "":
+#         return jsonify({"error": "Empty filename"}), 400
+
+#     try:
+#         image = Image.open(io.BytesIO(file.read())).convert("RGB")
+#     except Exception:
+#         return jsonify({"error": "Invalid image file"}), 400
+
+#     input_tensor = disease_transform(image).unsqueeze(0)
+
+#     with torch.no_grad():
+#         output = disease_model(input_tensor)
+#         probabilities = torch.nn.functional.softmax(output, dim=1)[0]
+#         confidence, disease_idx = torch.max(probabilities, 0)
+
+#     idx = disease_idx.item()
+#     disease_name = DISEASE_CLASSES[idx] if idx < len(DISEASE_CLASSES) else f"Class {idx}"
+
+#     return jsonify({
+#         "predicted_disease": disease_name,
+#         "confidence": round(confidence.item() * 100, 2),
+#     })
 
 
 # ══════════════════════════════════════════════════════════════

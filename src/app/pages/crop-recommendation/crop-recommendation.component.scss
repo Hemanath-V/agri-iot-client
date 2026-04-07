@@ -115,11 +115,15 @@
 
 .prediction-loading {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 14px;
-  padding: 18px 0;
+  padding: 18px;
+  margin-top: 16px;
   color: var(--text-secondary);
   font-size: 0.85rem;
+  background: #f5f5f5;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
 
   .spinner {
     width: 28px;
@@ -129,6 +133,56 @@
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
     flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .loading-detail {
+    flex: 1;
+  }
+
+  .loading-msg {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+  }
+
+  .elapsed-time {
+    font-size: 0.8rem;
+    color: var(--accent);
+    font-weight: 600;
+    margin-bottom: 8px;
+  }
+
+  .loading-steps {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 8px;
+
+    .step {
+      font-size: 0.78rem;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: #e0e0e0;
+      color: #757575;
+
+      &.active {
+        background: #fff3e0;
+        color: #e65100;
+        font-weight: 600;
+      }
+
+      &.done {
+        background: #c8e6c9;
+        color: #1b5e20;
+      }
+    }
+  }
+
+  .loading-hint {
+    font-size: 0.78rem;
+    color: #e65100;
+    font-style: italic;
+    margin-top: 4px;
   }
 }
 
