@@ -28,6 +28,7 @@ export class ApiService {
   private baseUrl = environment.apiBaseUrl;
   private mlBaseUrl = environment.mlApiBaseUrl;
   private useMock = environment.useMock;
+  private diseaseModelUrl = environment.diseaseModelUrl;
 
   constructor(private http: HttpClient, private mock: MockDataService) {}
 
@@ -257,7 +258,7 @@ export class ApiService {
       }).pipe(delay(1500));
     }
     return this.http
-      .post<DiseasePredictionResponse>(`${this.mlBaseUrl}/predict_disease`, formData)
+      .post<DiseasePredictionResponse>(`${this.diseaseModelUrl}/predict_disease`, formData)
       .pipe(
         retry({
           count: 1,
