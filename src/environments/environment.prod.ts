@@ -5,6 +5,8 @@ export const environment = {
 
   // TODO: Replace with your deployed Render ML backend URL
   mlApiBaseUrl: 'https://agri-iot-8mnu.onrender.com' ,
+
+  diseaseModelUrl: 'https://agri-iot-apj5.onrender.com',
     
   useMock: false
 };
